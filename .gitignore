@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+
+# IDE
+.idea/
+
+# Results / generated files
+results/
+*.png
+
+# OS
+.DS_Store
