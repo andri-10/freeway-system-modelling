@@ -1,7 +1,14 @@
 import numpy as np
 from actm import compute_flow, update_density, update_queue
+from controllers.linear_controller import LinearController
+from controllers.pi_controller import PIController
 
-def run_open_loop(params, scenario):
+def run_simulation(params, scenario, controller=None):
+    if controller is None:
+        mode = "open_loop"
+    else:
+        mode = "controlled"
+
     N = params["N"]
     ramp_cell = params["ramp_cell"]
     T = params["T"]
@@ -22,9 +29,20 @@ def run_open_loop(params, scenario):
 
     for k in range(K):
         # Ramp flow: unconstrained except by queue availability and max metering rate
-        available_ramp = ramp_demand[k] + queue[k, ramp_cell] / T
-        ramp_flow[k, ramp_cell] = min(r_max, max(0.0, available_ramp))
+        # available_ramp = ramp_demand[k] + queue[k, ramp_cell] / T
+        # ramp_flow[k, ramp_cell] = min(r_max, max(0.0, available_ramp))
+        if controller is None:
+            # open-loop
+            available_ramp = ramp_demand[k] + queue[k, ramp_cell] / T
+            ramp_flow[k, ramp_cell] = min(r_max, max(0.0, available_ramp))
+        else:
+            # controlled
+            rho_current = rho[k, ramp_cell]
+            r_control = controller.compute(rho_current)
 
+            # cannot exceed available vehicles
+            available_ramp = ramp_demand[k] + queue[k, ramp_cell] / T
+            ramp_flow[k, ramp_cell] = min(r_control, available_ramp)
         # Boundary inflow from upstream
         phi[k, 0] = min(upstream_demand[k], w * (rho_max - rho[k, 0]))
 
