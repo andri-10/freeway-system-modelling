@@ -1,8 +1,10 @@
+import os
 from scenario import build_parameters, build_scenario
 from simulator import run_open_loop
 from plotting import plot_density_heatmap, plot_queue
 
 def main():
+    os.makedirs("results", exist_ok=True)
     params = build_parameters()
     scenario = build_scenario()
     results = run_open_loop(params, scenario)
