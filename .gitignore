@@ -1,6 +1,16 @@
-/results/
-/main.py
-.python-version
-pyproject.toml
-uv.lock
-__pycache__
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+
+# IDE
+.idea/
+
+# Results / generated files
+results/
+*.png
+
+# OS
+.DS_Storegit push origin edison-controller
