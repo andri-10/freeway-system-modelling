@@ -2,7 +2,7 @@ from scenario import build_parameters, build_scenario
 from simulator import run_simulation
 from controllers.linear_controller import LinearController
 from controllers.pi_controller import PIController
-from plotting import plot_density_heatmap, plot_queue
+from plotting import plot_density_heatmap, plot_density_surface, plot_all_queues, plot_ramp_flows
 import os
 os.makedirs("results", exist_ok=True)
 
@@ -13,27 +13,35 @@ def main():
     mode = "pi"   # options: "open", "linear", "pi"
 
     if mode == "open":
-        controller = None
+        controllers = None
 
     elif mode == "linear":
-        controller = LinearController(
-            K=50,
-            rho_target=30,
-            r_max=params["r_max"]
-        )
+        controllers = {
+            cell: LinearController(
+                K=20,
+                rho_target=70,
+                r_max=params["r_max"],
+                r_base=400.0
+            )
+            for cell in params["ramp_cells"]
+        }
 
     elif mode == "pi":
-        controller = PIController(
-            Kp=50,
-            Ki=5,
-            rho_target=30,
-            r_max=params["r_max"]
-        )
+        controllers = {
+            cell: PIController(
+                Kp=20,
+                Ki=1,
+                rho_target=70,
+                r_max=params["r_max"],
+                r_base=400.0
+            )
+            for cell in params["ramp_cells"]
+        }
 
     else:
         raise ValueError("Invalid mode selected")
 
-    results = run_simulation(params, scenario, controller=controller)
+    results = run_simulation(params, scenario, controllers=controllers)
     suffix = mode
 
     plot_density_heatmap(
@@ -41,11 +49,22 @@ def main():
         output_path=f"results/density_{suffix}.png"
     )
 
-    plot_queue(
+    plot_all_queues(
         results["queue"],
-        params["ramp_cell"],
-        output_path=f"results/queue_{suffix}.png"
+        params["ramp_cells"],
+        output_path=f"results/queues_{suffix}.png"
     )
+
+    plot_density_surface(
+        results["rho"],
+        output_path=f"results/density_surface_{suffix}.png"
+    )
+
+    plot_ramp_flows(
+        results["ramp_flow"],
+        params["ramp_cells"],
+        output_path=f"results/ramp_flows_{suffix}.png"
+)
 
 
 if __name__ == "__main__":

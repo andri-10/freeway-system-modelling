@@ -1,12 +1,12 @@
 class PIController:
-    def __init__(self, Kp, Ki, rho_target, r_max):
+    def __init__(self, Kp, Ki, rho_target, r_max, r_base=300.0):
         self.Kp = Kp
         self.Ki = Ki
         self.rho_target = rho_target
         self.r_max = r_max
 
         self.prev_error = 0.0
-        self.r_prev = 0.0
+        self.r_prev = r_base
 
     def compute(self, rho):
         error = self.rho_target - rho
@@ -17,7 +17,9 @@ class PIController:
             + self.Ki * error
         )
 
-        self.prev_error = error
-        self.r_prev = r
+        r_sat = max(0.0, min(self.r_max, r))
 
-        return max(0.0, min(self.r_max, r))
+        self.prev_error = error
+        self.r_prev = r_sat
+
+        return r_sat
