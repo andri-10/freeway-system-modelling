@@ -15,24 +15,10 @@ from plotting import (
     plot_ramp_flows,
 )
 
+from metrics import compute_metrics, save_metrics_table
 
-def main():
-    parser = argparse.ArgumentParser(description="Freeway simulation")
-    parser.add_argument(
-        "-m", "--mode",
-        type=str,
-        default="open",
-        choices=["open", "linear", "pi", "ai"],
-        help="Simulation mode",
-    )
-    args = parser.parse_args()
-    mode = args.mode
 
-    os.makedirs("results", exist_ok=True)
-
-    params = build_parameters()
-    scenario = build_scenario()
-
+def build_controllers(mode, params):
     predictor = None
 
     if mode == "open":
@@ -67,8 +53,7 @@ def main():
 
         if not os.path.exists(predictor_path):
             raise RuntimeError(
-                "AI predictor not found. Run the training script first to generate "
-                "results/metrics/predictor.pkl"
+                "AI predictor not found. Run the training script first."
             )
 
         with open(predictor_path, "rb") as f:
@@ -89,7 +74,13 @@ def main():
         }
 
     else:
-        raise ValueError("Invalid mode selected")
+        raise ValueError(f"Invalid mode: {mode}")
+
+    return controllers, predictor
+
+
+def run_mode(mode, params, scenario, save_plots=True):
+    controllers, predictor = build_controllers(mode, params)
 
     results = run_simulation(
         params,
@@ -98,29 +89,72 @@ def main():
         predictor=predictor,
     )
 
-    suffix = mode
+    if save_plots:
+        plot_density_heatmap(
+            results["rho"],
+            output_path=f"results/density_{mode}.png",
+        )
 
-    plot_density_heatmap(
-        results["rho"],
-        output_path=f"results/density_{suffix}.png",
-    )
+        plot_density_surface(
+            results["rho"],
+            output_path=f"results/density_surface_{mode}.png",
+        )
 
-    plot_density_surface(
-        results["rho"],
-        output_path=f"results/density_surface_{suffix}.png",
-    )
+        plot_all_queues(
+            results["queue"],
+            params["ramp_cells"],
+            output_path=f"results/queues_{mode}.png",
+        )
 
-    plot_all_queues(
-        results["queue"],
-        params["ramp_cells"],
-        output_path=f"results/queues_{suffix}.png",
-    )
+        plot_ramp_flows(
+            results["ramp_flow"],
+            params["ramp_cells"],
+            output_path=f"results/flows_{mode}.png",
+        )
 
-    plot_ramp_flows(
-        results["ramp_flow"],
-        params["ramp_cells"],
-        output_path=f"results/flows_{suffix}.png",
+    return results
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Freeway simulation")
+    parser.add_argument(
+        "-m",
+        "--mode",
+        type=str,
+        default="open",
+        choices=["open", "linear", "pi", "ai", "all"],
+        help="Simulation mode",
     )
+    args = parser.parse_args()
+
+    os.makedirs("results", exist_ok=True)
+    os.makedirs("results/metrics", exist_ok=True)
+
+    params = build_parameters()
+    scenario = build_scenario()
+
+    if args.mode == "all":
+        modes = ["open", "linear", "pi", "ai"]
+        metrics_by_mode = {}
+
+        for mode in modes:
+            results = run_mode(mode, params, scenario, save_plots=True)
+            metrics_by_mode[mode] = compute_metrics(results, params)
+
+        df = save_metrics_table(
+            metrics_by_mode,
+            "results/metrics/comparison.csv",
+        )
+
+        print(df)
+
+    else:
+        results = run_mode(args.mode, params, scenario, save_plots=True)
+        metrics = compute_metrics(results, params)
+
+        print(f"\nMetrics for mode: {args.mode}")
+        for key, value in metrics.items():
+            print(f"{key}: {value:.3f}")
 
 
 if __name__ == "__main__":
