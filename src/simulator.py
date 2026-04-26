@@ -1,9 +1,11 @@
 import numpy as np
+
 from actm import compute_flow, update_density, update_queue
 
-def run_open_loop(params, scenario):
+
+def run_simulation(params, scenario, controllers=None, predictor=None):
     N = params["N"]
-    ramp_cell = params["ramp_cell"]
+    ramp_cells = params["ramp_cells"]
     T = params["T"]
     L = params["L"]
     v = params["v"]
@@ -13,7 +15,8 @@ def run_open_loop(params, scenario):
 
     K = scenario["num_steps"]
     upstream_demand = scenario["upstream_demand"]
-    ramp_demand = scenario["ramp_demand"]
+    ramp_demands = scenario["ramp_demands"]
+    capacity_factor = scenario["capacity_factor"]
 
     rho = np.zeros((K + 1, N))
     queue = np.zeros((K + 1, N))
@@ -21,49 +24,83 @@ def run_open_loop(params, scenario):
     phi = np.zeros((K, N + 1))
 
     for k in range(K):
-        # Ramp flow: unconstrained except by queue availability and max metering rate
-        available_ramp = ramp_demand[k] + queue[k, ramp_cell] / T
-        ramp_flow[k, ramp_cell] = min(r_max, max(0.0, available_ramp))
 
-        # Boundary inflow from upstream
-        phi[k, 0] = min(upstream_demand[k], w * (rho_max - rho[k, 0]))
+        # Compute ramp flows for all ramp cells
+        for ramp_cell in ramp_cells:
+            available_ramp = ramp_demands[k, ramp_cell] + queue[k, ramp_cell] / T
+
+            if controllers is None:
+                r = min(r_max, available_ramp)
+
+            else:
+                rho_current = rho[k, ramp_cell]
+
+                if predictor is not None and k >= predictor.lookback:
+                    history = ramp_demands[
+                        k - predictor.lookback:k,
+                        ramp_cell
+                    ]
+                    predicted_demand = predictor.predict(history)
+                else:
+                    predicted_demand = None
+
+                r_control = controllers[ramp_cell].compute(
+                    rho_current,
+                    predicted_demand
+                )
+
+                r = min(r_control, available_ramp)
+
+            ramp_flow[k, ramp_cell] = max(0.0, min(r_max, r))
+
+        # Upstream boundary flow
+        effective_rho_max_0 = rho_max * capacity_factor[k, 0]
+        phi[k, 0] = min(
+            upstream_demand[k],
+            w * (effective_rho_max_0 - rho[k, 0])
+        )
+        phi[k, 0] = max(0.0, phi[k, 0])
 
         # Internal flows
         for i in range(1, N):
-            r_i = ramp_flow[k, i]
+            effective_rho_max = rho_max * capacity_factor[k, i]
+
             phi[k, i] = compute_flow(
                 rho_up=rho[k, i - 1],
                 rho_down=rho[k, i],
                 v=v,
                 w=w,
-                rho_max=rho_max,
-                ramp_flow=r_i,
+                rho_max=effective_rho_max,
+                ramp_flow=ramp_flow[k, i],
             )
 
-        # Outflow from last cell
+        # Downstream boundary outflow
         phi[k, N] = v * rho[k, N - 1]
 
         # Update states
         for i in range(N):
-            r_i = ramp_flow[k, i]
             rho[k + 1, i] = update_density(
                 rho_i=rho[k, i],
                 phi_in=phi[k, i],
                 phi_out=phi[k, i + 1],
-                ramp_flow=r_i,
+                ramp_flow=ramp_flow[k, i],
                 T=T,
                 L=L,
             )
 
-            d_i = ramp_demand[k] if i == ramp_cell else 0.0
             queue[k + 1, i] = update_queue(
                 queue_i=queue[k, i],
-                demand_i=d_i,
-                ramp_flow=r_i,
+                demand_i=ramp_demands[k, i],
+                ramp_flow=ramp_flow[k, i],
                 T=T,
             )
 
-            rho[k + 1, i] = min(rho[k + 1, i], rho_max)
+            rho[k + 1, i] = max(0.0, min(rho[k + 1, i], rho_max))
+            queue[k + 1, i] = max(0.0, queue[k + 1, i])
+
+    print("Max density:", rho.max())
+    print("Max queue:", queue.max())
+    print("Ramp flow sums:", ramp_flow[:, params["ramp_cells"]].sum(axis=0))
 
     return {
         "rho": rho,
