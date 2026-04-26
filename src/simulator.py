@@ -1,10 +1,7 @@
 import numpy as np
-from actm import compute_flow, update_density, update_queue
-from controllers.linear_controller import LinearController
-from controllers.pi_controller import PIController
 
-import numpy as np
 from actm import compute_flow, update_density, update_queue
+
 
 def run_simulation(params, scenario, controllers=None, predictor=None):
     N = params["N"]
@@ -34,20 +31,27 @@ def run_simulation(params, scenario, controllers=None, predictor=None):
 
             if controllers is None:
                 r = min(r_max, available_ramp)
+
             else:
                 rho_current = rho[k, ramp_cell]
 
-            # AI: predict future demand if predictor available
-            if predictor is not None and k >= predictor.lookback:
-                history = ramp_demands[max(0,k-predictor.lookback):k, ramp_cell]
-                predicted_demand = predictor.predict(history)
-            else:
-                predicted_demand = ramp_demands[k, ramp_cell]
+                if predictor is not None and k >= predictor.lookback:
+                    history = ramp_demands[
+                        k - predictor.lookback:k,
+                        ramp_cell
+                    ]
+                    predicted_demand = predictor.predict(history)
+                else:
+                    predicted_demand = None
 
-            r_control = controllers[ramp_cell].compute(rho_current, predicted_demand)
-            r = min(r_control, available_ramp)
+                r_control = controllers[ramp_cell].compute(
+                    rho_current,
+                    predicted_demand
+                )
 
-        ramp_flow[k, ramp_cell] = max(0.0, min(r_max, r))
+                r = min(r_control, available_ramp)
+
+            ramp_flow[k, ramp_cell] = max(0.0, min(r_max, r))
 
         # Upstream boundary flow
         effective_rho_max_0 = rho_max * capacity_factor[k, 0]
@@ -94,6 +98,10 @@ def run_simulation(params, scenario, controllers=None, predictor=None):
             rho[k + 1, i] = max(0.0, min(rho[k + 1, i], rho_max))
             queue[k + 1, i] = max(0.0, queue[k + 1, i])
 
+    print("Max density:", rho.max())
+    print("Max queue:", queue.max())
+    print("Ramp flow sums:", ramp_flow[:, params["ramp_cells"]].sum(axis=0))
+
     return {
         "rho": rho,
         "queue": queue,
@@ -101,4 +109,3 @@ def run_simulation(params, scenario, controllers=None, predictor=None):
         "phi": phi,
         "time": scenario["time"],
     }
- 

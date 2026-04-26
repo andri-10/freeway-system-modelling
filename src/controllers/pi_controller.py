@@ -13,8 +13,8 @@ class PIController:
 
         # if prediction available and demand is rising, tighten control
         if predicted_demand is not None:
-            anticipation = max(0.0, predicted_demand - self.rho_target * 0.5)
-            error = error - 0.01 * anticipation
+            anticipation = max(0.0, predicted_demand - 500.0)
+            error = error - min(0.005 * anticipation, 20.0)
 
         r = (
             self.r_prev
