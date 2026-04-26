@@ -52,11 +52,12 @@ def main():
     elif mode == "pi":
         controllers = {
             cell: PIController(
-                Kp=20,
-                Ki=1,
+                Kp=12,
+                Ki=0.6,
                 rho_target=70,
                 r_max=params["r_max"],
                 r_base=400.0,
+                ai_enabled=False,
             )
             for cell in params["ramp_cells"]
         }
@@ -75,11 +76,14 @@ def main():
 
         controllers = {
             cell: PIController(
-                Kp=20,
-                Ki=1,
+                Kp=12,
+                Ki=0.6,
                 rho_target=70,
                 r_max=params["r_max"],
                 r_base=400.0,
+                ai_enabled=True,
+                demand_threshold=650.0,
+                ai_gain=0.25,
             )
             for cell in params["ramp_cells"]
         }
