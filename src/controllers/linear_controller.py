@@ -5,7 +5,7 @@ class LinearController:
         self.r_max = r_max
         self.r_base = r_base
 
-    def compute(self, rho):
+    def compute(self, rho, predicted_demand=None):
         error = self.rho_target - rho
         r = self.r_base + self.K * error
         return max(0.0, min(self.r_max, r))

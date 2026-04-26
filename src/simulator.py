@@ -6,7 +6,7 @@ from controllers.pi_controller import PIController
 import numpy as np
 from actm import compute_flow, update_density, update_queue
 
-def run_simulation(params, scenario, controllers=None):
+def run_simulation(params, scenario, controllers=None, predictor=None):
     N = params["N"]
     ramp_cells = params["ramp_cells"]
     T = params["T"]
@@ -36,9 +36,18 @@ def run_simulation(params, scenario, controllers=None):
                 r = min(r_max, available_ramp)
             else:
                 rho_current = rho[k, ramp_cell]
-                r_control = controllers[ramp_cell].compute(rho_current)
-                r = min(r_control, available_ramp)
-                ramp_flow[k, ramp_cell] = max(0.0, min(r_max, r))
+
+            # AI: predict future demand if predictor available
+            if predictor is not None and k >= predictor.lookback:
+                history = ramp_demands[max(0,k-predictor.lookback):k, ramp_cell]
+                predicted_demand = predictor.predict(history)
+            else:
+                predicted_demand = ramp_demands[k, ramp_cell]
+
+            r_control = controllers[ramp_cell].compute(rho_current, predicted_demand)
+            r = min(r_control, available_ramp)
+
+        ramp_flow[k, ramp_cell] = max(0.0, min(r_max, r))
 
         # Upstream boundary flow
         effective_rho_max_0 = rho_max * capacity_factor[k, 0]

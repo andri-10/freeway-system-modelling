@@ -22,7 +22,7 @@ def main():
         "-m", "--mode",
         type=str,
         default="open",
-        choices=["open", "linear", "pi"],
+        choices=["open", "linear", "pi", "ai"],
         help="Simulation mode"
     )
     args = parser.parse_args()
@@ -60,11 +60,24 @@ def main():
             for cell in params["ramp_cells"]
         }
 
+    elif mode == "ai":
+        import pickle
+        with open("results/metrics/predictor.pkl", "rb") as f:
+            predictor = pickle.load(f)
+        controllers = {
+            cell: PIController(
+                Kp=20, Ki=1, rho_target=70,
+                r_max=params["r_max"], r_base=400.0
+            )
+            for cell in params["ramp_cells"]
+        }
+        results = run_simulation(params, scenario, controllers=controllers, predictor=predictor)
+
     else:
         raise ValueError("Invalid mode selected")
 
     # ---- Run simulation ----
-    results = run_simulation(params, scenario, controllers=controllers)
+    results = run_simulation(params, scenario, controllers=controllers, predictor=None)
 
     suffix = mode
 

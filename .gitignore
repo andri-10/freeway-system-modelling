@@ -11,6 +11,8 @@ __pycache__/
 # Results / generated files
 results/
 *.png
-
+.python-version
+pyproject.toml
+uv.lock
 # OS
 .DS_Storegit push origin edison-controller
