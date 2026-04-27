@@ -10,10 +10,14 @@ def compute_metrics(results, params):
     L = params["L"]
     ramp_cells = params["ramp_cells"]
 
-    tts = T * (L * rho[:-1, :].sum() + queue[:-1, :].sum())
+    mainline_tts = T * L * rho[:-1, :].sum()
+    queue_tts = T * queue[:-1, :].sum()
+    total_tts = mainline_tts + queue_tts
 
     metrics = {
-        "TTS [veh*h]": tts,
+        "TTS [veh*h]": total_tts,
+        "Mainline TTS [veh*h]": mainline_tts,
+        "Queue TTS [veh*h]": queue_tts,
         "Max density [veh/km]": rho.max(),
         "Avg density [veh/km]": rho.mean(),
         "Max queue [veh]": queue[:, ramp_cells].max(),

@@ -23,7 +23,7 @@ if __name__ == "__main__":
     print("Generating training data...")
     demand_series = generate_training_data()
     print(f"Training on {len(demand_series)} samples...")
-    predictor = DemandPredictor(lookback=10, horizon=5)
+    predictor = DemandPredictor(lookback=10, horizon=15)
     predictor.train(demand_series)
     save_path = "results/metrics/predictor.pkl"
     with open(save_path, "wb") as f:

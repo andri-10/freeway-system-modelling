@@ -28,7 +28,7 @@ def build_controllers(mode, params):
         controllers = {
             cell: LinearController(
                 K=20,
-                rho_target=70,
+                rho_target=110,
                 r_max=params["r_max"],
                 r_base=400.0,
             )

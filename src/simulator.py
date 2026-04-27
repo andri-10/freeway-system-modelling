@@ -31,7 +31,7 @@ def run_simulation(params, scenario, controllers=None, predictor=None):
 
             if controllers is None:
                 r = min(r_max, available_ramp)
-
+                ramp_flow[k, ramp_cell] = max(0.0, r)
             else:
                 rho_current = rho[k, ramp_cell]
 
