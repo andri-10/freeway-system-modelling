@@ -98,10 +98,6 @@ def run_simulation(params, scenario, controllers=None, predictor=None):
             rho[k + 1, i] = max(0.0, min(rho[k + 1, i], rho_max))
             queue[k + 1, i] = max(0.0, queue[k + 1, i])
 
-    print("Max density:", rho.max())
-    print("Max queue:", queue.max())
-    print("Ramp flow sums:", ramp_flow[:, params["ramp_cells"]].sum(axis=0))
-
     return {
         "rho": rho,
         "queue": queue,
